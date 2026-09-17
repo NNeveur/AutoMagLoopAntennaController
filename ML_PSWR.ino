@@ -18,11 +18,9 @@
 //** You should have received a copy of the GNU General Public License
 //** along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //**
-//** Platform........: Teensy 3.1 & 3.2 (http://www.pjrc.com)
-//**                   (It may be possible to adapt this code to other
-//**                    Arduino compatible platforms, however this will 
-//**                    require extensive rewriting of some portions of
-//**                    the code)
+//** Platform........: Teensy 3.1, 3.2 & 4.1 (http://www.pjrc.com)
+//**                   (Code updated to support Teensy 4.1 alongside
+//**                    Teensy 3.1/3.2)
 //**
 //** Initial version.: 0.00, 2012-10-20  Loftur Jonasson, TF3LJ / VE2LJX
 //**                   (pre-alpha version)
@@ -104,7 +102,8 @@ void adc_poll(void)
   if (ad7991_addr)
   {  
     Wire1.requestFrom(ad7991_addr, 4);
-    while (Wire1.available()) read_B[i++] = Wire1.readByte();
+    // Wire1.read() is compatible with both standard Wire.h (Teensy 4.1) and i2c_t3.h (Teensy 3.1/3.2)
+    while (Wire1.available()) read_B[i++] = Wire1.read();
 
     // The output of the 12bit ADCs is contained in two consecutive byte pairs
     // read from the AD7991.  In theory, the second could be read before the first.

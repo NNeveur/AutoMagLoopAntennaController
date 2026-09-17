@@ -18,11 +18,9 @@
 //** You should have received a copy of the GNU General Public License
 //** along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //**
-//** Platform........: Teensy 3.1 & 3.2 (http://www.pjrc.com)
-//**                   (It may be possible to adapt this code to other
-//**                    Arduino compatible platforms, however this will 
-//**                    require extensive rewriting of some portions of
-//**                    the code)
+//** Platform........: Teensy 3.1, 3.2 & 4.1 (http://www.pjrc.com)
+//**                   (Code updated to support Teensy 4.1 alongside
+//**                    Teensy 3.1/3.2)
 //**
 //** Initial version.: 0.00, 2012-10-20  Loftur Jonasson, TF3LJ / VE2LJX
 //**                   (pre-alpha version)
@@ -67,7 +65,11 @@
 #include "ML.h"
 
 #if WIRE_ENABLED
-#include <i2c_t3.h>
+#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1052__)
+#include <Wire.h>                    // Standard Wire library for Teensy 4.0/4.1
+#else
+#include <i2c_t3.h>                  // i2c_t3 library for Teensy 3.1/3.2
+#endif
 #endif
 
 //-----------------------------------------------------------------------------------------
@@ -1275,8 +1277,15 @@ void setup()
   
   #if PSWR_AUTOTUNE
   #if WIRE_ENABLED
-  // Start I2C on port SDA1/SCL1 (pins 29/30) - 400 kHz
+  // Start I2C on port SDA1/SCL1 - 400 kHz
+#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1052__)
+  // Teensy 4.1 standard Wire1 initialization and clock configuration
+  Wire1.begin();
+  Wire1.setClock(400000);
+#else
+  // Teensy 3.1/3.2 i2c_t3 library initialization syntax
   Wire1.begin(I2C_MASTER,0x00,I2C_PINS_29_30,I2C_PULLUP_INT,I2C_RATE_400); 
+#endif
   uint8_t i2c_status = I2C_Init();               // Initialize I2C comms
   #endif
   

@@ -18,11 +18,9 @@
 //** You should have received a copy of the GNU General Public License
 //** along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //**
-//** Platform........: Teensy 3.1 & 3.2 (http://www.pjrc.com)
-//**                   (It may be possible to adapt this code to other
-//**                    Arduino compatible platforms, however this will 
-//**                    require extensive rewriting of some portions of
-//**                    the code)
+//** Platform........: Teensy 3.1, 3.2 & 4.1 (http://www.pjrc.com)
+//**                   (Code updated to support Teensy 4.1 alongside
+//**                    Teensy 3.1/3.2)
 //**
 //** Initial version.: 0.00, 2012-10-20  Loftur Jonasson, TF3LJ / VE2LJX
 //**                   (pre-alpha version)
@@ -3326,17 +3324,31 @@ void trx_parameters_set(uint8_t which_trx)
          valid_uart_config[controller_settings.trx[which_trx].radio] : valid_uart_config_inv[controller_settings.trx[which_trx].radio]);
          
   // For ICOM Radios set UART output with Open Drain and Pullup
-  //
+  // (ICOM CI-V bus is a single-wire bi-directional bus requiring open-drain TX and pullup RX)
   if (controller_settings.trx[which_trx].radio < 2)
   {
+#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1052__)
+    // Teensy 4.0/4.1 (ARM Cortex-M7 / i.MX RT1062) open drain and pullup configuration
+    pinMode(Uart_TXD, OUTPUT_OPENDRAIN);                               // Open Drain Enable on Teensy 4.x
+    pinMode(Uart_RXD, INPUT_PULLUP);                                  // Pullup Enable on Teensy 4.x
+#else
+    // Teensy 3.1/3.2 (Kinetis ARM Cortex-M4) register-level PORT PCR configuration
     *portConfigRegister(Uart_TXD) |= PORT_PCR_ODE;                     // Open Drain Enable
     *portConfigRegister(Uart_RXD) |= (PORT_PCR_PE | PORT_PCR_PS);      // Pullup Enable
+#endif
   }
   // Set UART function normal for all other Radios - Needed if switching back from ICOM
   else
   {
+#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1052__)
+    // Restore normal push-pull TX and standard input RX on Teensy 4.x
+    pinMode(Uart_TXD, OUTPUT);                                         // Push-Pull Output
+    pinMode(Uart_RXD, INPUT);                                          // Standard Input
+#else
+    // Restore normal TX/RX registers on Teensy 3.1/3.2
     *portConfigRegister(Uart_TXD) &= ~PORT_PCR_ODE;                   // Open Drain Disable
     *portConfigRegister(Uart_RXD) &= ~(PORT_PCR_PE | PORT_PCR_PS);    // Pullup Disable
+#endif
   }
   
   // BOOL for TRX serial port - TRUE = Asynchronous serial read mode

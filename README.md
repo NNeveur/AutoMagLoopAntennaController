@@ -4,7 +4,7 @@
 
 * **Auteur :** Loftur E. Jonasson (TF3LJ / VE2AO / VE2LJX)
 * **Version du firmware :** 4.10 (21 Juin 2020)
-* **Plateforme :** Teensy 3.1 / 3.2 (Microcontrôleur ARM Cortex-M4)
+* **Plateformes supportées :** Teensy 3.1 / 3.2 (ARM Cortex-M4) & **Teensy 4.1** (ARM Cortex-M7 à 600 MHz)
 * **Licence :** GNU General Public License v3.0 (GPLv3)
 
 ---
@@ -60,7 +60,7 @@ Une antenne boucle magnétique possédant une bande passante très étroite, cha
 
 ## 🛠️ Architecture Matérielle (Hardware)
 
-* **Microcontrôleur :** PJRC Teensy 3.1 ou Teensy 3.2 (32-bit ARM Cortex-M4 à 72 MHz).
+* **Microcontrôleur :** PJRC Teensy 3.1 / 3.2 (32-bit ARM Cortex-M4 à 72 MHz) ou **Teensy 4.1** (32-bit ARM Cortex-M7 à 600 MHz).
 * **Pilote de Moteur Pas-à-Pas :**
   - Soit 2x Allegro A4975.
   - Soit 1x Pololu DRV8825 / A4988 (`#define DRV8825STEPPER 1`).
@@ -77,18 +77,41 @@ Une antenne boucle magnétique possédant une bande passante très étroite, cha
 
 ---
 
+## 🔌 Adaptation pour Teensy 4.1 (Modifications apportées au code)
+
+Pour assurer une compatibilité complète avec la carte **Teensy 4.1** sans casser la rétrocompatibilité avec les cartes Teensy 3.1 et 3.2, les adaptations suivantes ont été implémentées :
+
+1. **Réinitialisation Logicielle (`SOFT_RESET()`) dans `ML.h` :**
+   - Sur Teensy 3.x, le reset logiciel utilisait l'adresse fixe du registre SCB_AIRCR Kinetis (`0xE000ED0C`).
+   - Sur Teensy 4.1 (ARM Cortex-M7 i.MX RT1062), `SCB_AIRCR = 0x05FA0004` est utilisé pour déclencher un `SYSRESETREQ` propre via les macros CMSIS.
+
+2. **Configuration du Port Série ICOM CI-V (`ML_TRX.ino`) :**
+   - Le bus ICOM CI-V nécessite une ligne TX en drain ouvert (*Open Drain*) et un récepteur RX avec résistance de rappel (*Pullup*).
+   - Sur Teensy 3.x, cela était réalisé en manipulant directement le registre `portConfigRegister(...)` avec `PORT_PCR_ODE`, `PORT_PCR_PE` et `PORT_PCR_PS`.
+   - Sur Teensy 4.1, les registres d'E/S (IOMUXC) étant différents, la configuration utilise `pinMode(Uart_TXD, OUTPUT_OPENDRAIN)` et `pinMode(Uart_RXD, INPUT_PULLUP)`.
+
+3. **Inclusions et Gestion de l'I2C (`ML_v410.ino` et `ML_PSWR.ino`) :**
+   - La bibliothèque `i2c_t3.h` est spécifique aux microcontrôleurs Kinetis (Teensy 3.x/LC).
+   - Sur Teensy 4.1, l'inclusion bascule sur la bibliothèque standard `<Wire.h>`, avec une initialisation `Wire1.begin()` et `Wire1.setClock(400000)`.
+   - La méthode de lecture I2C `Wire1.readByte()` spécifique à `i2c_t3` a été remplacée par la méthode standard `Wire1.read()`.
+
+4. **Broches d'E/S et Repérage des Pins (`ML.h`) :**
+   - Sur Teensy 3.1/3.2, les pins 24 à 33 correspondaient à des pastilles à souder sous la carte. Sur Teensy 4.1, ce sont des broches standard situées sur les connecteurs de bordure.
+
+---
+
 ## 📁 Structure des Fichiers du Projet
 
 | Fichier | Description |
 | :--- | :--- |
-| `ML.h` | Fichier d'en-tête principal : définitions matérielles, options de compilation (`#define`), structures de données et constantes. |
+| `ML.h` | Fichier d'en-tête principal : définitions matérielles, options de compilation (`#define`), structures de données, `SOFT_RESET()` et constantes. |
 | `ML_v410.ino` | Fichier principal : initialisation (`setup()`), boucle principale (`loop()`), tâches périodiques et suivi de fréquence. |
 | `ML_Display.ino` | Gestion de l'écran LCD 20x4, du buffer virtuel, de l'économiseur d'écran et des bargraphes de puissance/ROS. |
 | `ML_Menu.ino` | Arborescence et gestion du menu de configuration utilisateur (réglages moteur, radios, calibration, mémoires). |
 | `ML_PSWR.ino` | Échantillonnage ADC, calculs de la puissance directe/réfléchie (mW, W), du PEP, du ROS et étalonnage (AD8307 / diodes). |
 | `ML_Pos_Mgmnt.ino` | Gestion des mémoires de position, tri des présélections, interpolation fréquence/position et démultiplication variable. |
 | `ML_SWRtune.ino` | Algorithme de recherche automatique du creux de ROS (*SWR Autotune*), contrôle automatique du transcepteur en PTT/AM. |
-| `ML_TRX.ino` | Pilote de communication CAT pour les différents transcepteurs (ICOM, Kenwood, Yaesu, Elecraft, TenTec, Pseudo-VFO). |
+| `ML_TRX.ino` | Pilote de communication CAT pour les différents transcepteurs (ICOM, Kenwood, Yaesu, Elecraft, TenTec, Pseudo-VFO) avec support Open Drain pour Teensy 3.x et 4.x. |
 | `ML_USB.ino` | Interprète de commandes série USB pour le contrôle distant, l'export/import des mémoires et le débogage. |
 | `ML__Switches_and_Stepper.ino` | Gestion matérielle des boutons poussoirs (anti-rebond, détection appui court/long) et génération des impulsions du moteur pas-à-pas. |
 | `_EEPROMAnything.h` | Fonctions génériques (templates) de lecture/écriture de structures en EEPROM. |
@@ -122,9 +145,8 @@ Toutes les options matérielles et logicielles sont configurables dans le fichie
 ## 🔨 Compilation et Installation
 
 1. **Prérequis matériels & logiciels :**
-   - [Arduino IDE](https://www.arduino.cc/en/software) (version 1.8.x recommandée).
-   - Extension [Teensyduino](https://www.pjrc.com/teensy/td_download.html) installée dans l'Arduino IDE.
-   - Carte sélectionnée : **Teensy 3.1** ou **Teensy 3.2**.
+   - [Arduino IDE](https://www.arduino.cc/en/software) (version 1.8.x ou 2.x) avec l'extension [Teensyduino](https://www.pjrc.com/teensy/td_download.html).
+   - Carte sélectionnée : **Teensy 4.1** (ou **Teensy 3.2/3.1**).
 
 2. **Bibliothèques requises :**
    - `LiquidCrystalFast`
@@ -132,13 +154,12 @@ Toutes les options matérielles et logicielles sont configurables dans le fichie
    - `Encoder`
    - `ADC`
    - `EEPROM`
-   - `i2c_t3` (si `WIRE_ENABLED` est activé)
+   - `Wire` (Teensy 4.1) / `i2c_t3` (Teensy 3.x)
 
 3. **Procédure de compilation :**
    - Ouvrir `ML_v410.ino` dans l'Arduino IDE.
    - Ajuster les paramètres souhaités dans `ML.h` (Type de driver moteur, type de radio, options SWR).
-   - Sélectionner la carte : *Outils > Type de carte > Teensy3.2/3.1*.
-   - Régler la fréquence d'horloge sur *72 MHz*.
+   - Sélectionner la carte : *Outils > Type de carte > Teensy 4.1*.
    - Cliquer sur **Vérifier / Compiler** puis télverser sur le Teensy via USB.
 
 ---
