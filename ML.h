@@ -18,11 +18,9 @@
 //** You should have received a copy of the GNU General Public License
 //** along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //**
-//** Platform........: Teensy 3.1 & 3.2 (http://www.pjrc.com)
-//**                   (It may be possible to adapt this code to other
-//**                    Arduino compatible platforms, however this will 
-//**                    require extensive rewriting of some portions of
-//**                    the code)
+//** Platform........: Teensy 3.1, 3.2 & 4.1 (http://www.pjrc.com)
+//**                   (Code updated to support Teensy 4.1 alongside
+//**                    Teensy 3.1/3.2)
 //**
 //** Initial version.: 0.00, 2012-10-20  Loftur Jonasson, TF3LJ / VE2LJX
 //**                   (pre-alpha version)
@@ -650,25 +648,25 @@ const int hardware_ptt= 28;
 
 //-----------------------------------------------------------------------------
 // Antenna select output - if anyone needs it.
-//
+// Note: Pins 24-33 are solder pads under Teensy 3.1/3.2, but standard header pins on Teensy 4.1.
 #define ANALOGOUTPIN     1    // 1 for pin A14, 0 for pin 27
 //
 #if ANALOGOUTPIN              // Normal configuration:
-const int ant1_select =  A14; // Analog output pin used as a digital ouput pin
+const int ant1_select =  A14; // Analog output pin used as a digital output pin
 //
 #else                         // Alternate configuration:
-const int ant1_select =  27;  // Pad underneath the Teensy 3.1/3.2
+const int ant1_select =  27;  // Pad underneath Teensy 3.1/3.2, pin 27 on Teensy 4.1
 #endif
-const int ant2_select =  26;  // Pad underneath the Teensy 3.1/3.2
+const int ant2_select =  26;  // Pad underneath Teensy 3.1/3.2, pin 26 on Teensy 4.1
 
 #if ANT_CHG_2BANKS && !ANT1_CHANGEOVER && ANALOGOUTPIN // 2 Memory banks, Manual Mode
-const int ChgOvSW     =  27;  // Antenna Changeover, pad underneath the Teensy 3.1/3.2
+const int ChgOvSW     =  27;  // Antenna Changeover, pad underneath Teensy 3.1/3.2, pin 27 on Teensy 4.1
 #endif
-const int bnd_bit1    =  24;  // Band switching signals, pads underneath the Teensy 3.1/3.2,
-const int bnd_bit2    =  25;  // two binary signal pins for four bands.
-const int profile_bit1=  31;  // Radio Profile switching  signals, pads underneath the Teensy 3.1/3.2,
-const int profile_bit2=  32;  // two binary signal pins for four profiles.
-const int swralarm_bit=  33;  // SWR alarm output whenever SWR is higher than Menu Preset
+const int bnd_bit1    =  24;  // Band switching signals, pads underneath Teensy 3.1/3.2 (pin 24 on Teensy 4.1),
+const int bnd_bit2    =  25;  // two binary signal pins for four bands (pin 25 on Teensy 4.1).
+const int profile_bit1=  31;  // Radio Profile switching signals, pads underneath Teensy 3.1/3.2 (pin 31 on Teensy 4.1),
+const int profile_bit2=  32;  // two binary signal pins for four profiles (pin 32 on Teensy 4.1).
+const int swralarm_bit=  33;  // SWR alarm output whenever SWR is higher than Menu Preset (pin 33 on Teensy 4.1).
 
 //
 //-----------------------------------------------------------------------------
@@ -812,10 +810,15 @@ typedef struct  {
 #define NOPWR      3
 
 //-----------------------------------------------------------------------------
-// Soft Reset Teensy 3 style
+// Soft Reset - Compatible with Teensy 3.1/3.2 (Kinetis ARM Cortex-M4) and Teensy 4.0/4.1 (ARM Cortex-M7)
+// Writing VECTKEY (0x05FA) and SYSRESETREQ (0x04) to SCB_AIRCR (0xE000ED0C) triggers a software system reset.
+#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1052__)
+#define SOFT_RESET()       SCB_AIRCR = 0x05FA0004
+#else
 #define RESTART_ADDR       0xE000ED0C
 #define RESTART_VAL        0x5FA0004
 #define SOFT_RESET()       ((*(volatile uint32_t *)RESTART_ADDR) = (RESTART_VAL))
+#endif
 
 //-----------------------------------------------------------------------------
 // Macros
