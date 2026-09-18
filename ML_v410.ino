@@ -18,9 +18,11 @@
 //** You should have received a copy of the GNU General Public License
 //** along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //**
-//** Platform........: Teensy 3.1, 3.2 & 4.1 (http://www.pjrc.com)
-//**                   (Code updated to support Teensy 4.1 alongside
-//**                    Teensy 3.1/3.2)
+//** Platform........: Teensy 3.1 & 3.2 (http://www.pjrc.com)
+//**                   (It may be possible to adapt this code to other
+//**                    Arduino compatible platforms, however this will 
+//**                    require extensive rewriting of some portions of
+//**                    the code)
 //**
 //** Initial version.: 0.00, 2012-10-20  Loftur Jonasson, TF3LJ / VE2LJX
 //**                   (pre-alpha version)
@@ -65,11 +67,7 @@
 #include "ML.h"
 
 #if WIRE_ENABLED
-#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1052__)
-#include <Wire.h>                    // Standard Wire library for Teensy 4.0/4.1
-#else
-#include <i2c_t3.h>                  // i2c_t3 library for Teensy 3.1/3.2
-#endif
+#include <i2c_t3.h>
 #endif
 
 //-----------------------------------------------------------------------------------------
@@ -225,6 +223,7 @@ LiquidCrystalFast lcd(LCD_RS, LCD_RW, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 // Define a "Uart" object to access the serial port
 //HardwareSerial Uart = HardwareSerial();
 #define Uart Serial1
+#define Rs485 Serial2
 
 //
 //-----------------------------------------------------------------------------------------
@@ -757,6 +756,12 @@ void loop()
     //
     drv8825_Move();
     #endif
+    #if RS485STEPPER  // ML.h selection: A Pololu (Allegro) A4988 or (TI) 8825 Stepper motor controller carrier board
+    //-------------------------------------------------------------------
+    // Finalize stepper Move Pulse
+    //
+    rs485_Move();
+    #endif
 
     //-------------------------------------------------------------------
     // Print from virtual LCD to real LCD, approx one char per millisecond
@@ -961,9 +966,13 @@ void loop()
       }                                     // + delta_Pos, if frequency is outside of range 
       if (frq_store_timer >= 10)            // Power down stepper if stable for 1 second
       {                                
+        #if RS485STEPPER
+        rs485_PwrOff();                   // Power down the stepper
+        #endif
         #if DRV8825STEPPER
         drv8825_PwrOff();                   // Power down the stepper
-        #else
+        #endif
+		#if A4975STEPPER
         a4975_PwrOff();                     // Power down the stepper
         #endif
       }
@@ -1101,9 +1110,14 @@ void setup()
 {
   uint8_t coldstart;
   
+  #if RS485STEPPER
+  Rs485.begin(9600);                                   // initialize USB virtual serial serial port
+  rs485_Init();                   // Power down the stepper
+  #endif
   #if DRV8825STEPPER  // ML.h selection: A Pololu (Allegro) A4988 or (TI) DRV8825 Stepper motor controller carrier board
   drv8825_Init();
-  #else               // ML.h selection: A pair of A4975 Stepper Controllers
+  #endif  // ML.h selection: A pair of A4975 Stepper Controllers
+  #if A4975STEPPER
   a4975_Init();                            // Initialize Stepper Motor
   #endif
   
@@ -1277,15 +1291,8 @@ void setup()
   
   #if PSWR_AUTOTUNE
   #if WIRE_ENABLED
-  // Start I2C on port SDA1/SCL1 - 400 kHz
-#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1052__)
-  // Teensy 4.1 standard Wire1 initialization and clock configuration
-  Wire1.begin();
-  Wire1.setClock(400000);
-#else
-  // Teensy 3.1/3.2 i2c_t3 library initialization syntax
+  // Start I2C on port SDA1/SCL1 (pins 29/30) - 400 kHz
   Wire1.begin(I2C_MASTER,0x00,I2C_PINS_29_30,I2C_PULLUP_INT,I2C_RATE_400); 
-#endif
   uint8_t i2c_status = I2C_Init();               // Initialize I2C comms
   #endif
   
@@ -1396,6 +1403,36 @@ void setup()
     }
     delay(100);
     drv8825_PwrOff();
+  }
+  #endif
+
+  #if RS485STEPPER
+  int8_t microstep;
+  microstep = stepper_track[ant]%8;
+  //Serial.println(microstep);
+  if (microstep > 0)
+  {
+    if (microstep < 5)   // Positive direction
+    {
+      for (uint8_t i = 0; i < microstep; i++)
+      {
+        rs485_Incr(0);
+        delay(1);
+        rs485_Move();
+      }
+    }
+    else                 // Negative direction
+    {
+      microstep = 8 - microstep;
+      for (uint8_t i = 0; i < microstep; i++)
+      {
+        rs485_Incr(0);
+        delay(1);
+        rs485_Move();
+      }      
+    }
+    delay(100);
+    rs485_PwrOff();
   }
   #endif
   

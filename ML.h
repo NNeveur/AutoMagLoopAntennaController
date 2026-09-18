@@ -18,9 +18,11 @@
 //** You should have received a copy of the GNU General Public License
 //** along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //**
-//** Platform........: Teensy 3.1, 3.2 & 4.1 (http://www.pjrc.com)
-//**                   (Code updated to support Teensy 4.1 alongside
-//**                    Teensy 3.1/3.2)
+//** Platform........: Teensy 3.1 & 3.2 (http://www.pjrc.com)
+//**                   (It may be possible to adapt this code to other
+//**                    Arduino compatible platforms, however this will 
+//**                    require extensive rewriting of some portions of
+//**                    the code)
 //**
 //** Initial version.: 0.00, 2012-10-20  Loftur Jonasson, TF3LJ / VE2LJX
 //**                   (pre-alpha version)
@@ -43,9 +45,9 @@
 // Definitions for Hardware implementation
 //
 //-----------------------------------------------------------------------------
-#define DRV8825STEPPER     1    // Set as 0 if 2x Allegro A4975 stepper drivers
-                                // Set as 1 if Pololu or StepStick (TI)n DRV8825
-                                // or (Allegro) A4988 stepper controller
+#define DRV8825STEPPER     0    // Set 1 if DRV8825 stepper drivers
+#define A4975STEPPER       0    // Set 1 if 2x Allegro A4975 stepper drivers
+#define RS485STEPPER	   1	// Set 1 if Use RS485 stepper control							
 //-----------------------------------------------------------------------------
 // Enable AD8307 option for Power/SWR meter if using 2x AD8307 log amp detector
 #define AD8307_INSTALLED   0    // 0 or 1
@@ -619,7 +621,7 @@ const int Pref             = A11;
 
 // Two alternate Stepper Motor configurations
 // A pair of Allegro A4975, or a Pololu (Texas Instruments) DRV8825 or (Allegro) A4988 
-#if !DRV8825STEPPER
+#if A4975STEPPER
 // Assign Output Pins to a pair of A4975 Steppers
 const int PhA           = 20;
 const int D2A           = 19;
@@ -629,7 +631,8 @@ const int PhB           = 16;
 const int D2B           = 15;
 const int D1B           = 14;
 const int D0B           = 13;     // Pin 13 is the ledPin
-#else
+#endif
+#if DRV8825STEPPER
 // Assign Output Pins to DRV8825, also applies for the A4988 Stepper
 const int drv8825_dir   = 14;     // Direction pin
 const int drv8825_step  = 15;     // Step pin (positive pulse of +1us for each step)
@@ -648,25 +651,25 @@ const int hardware_ptt= 28;
 
 //-----------------------------------------------------------------------------
 // Antenna select output - if anyone needs it.
-// Note: Pins 24-33 are solder pads under Teensy 3.1/3.2, but standard header pins on Teensy 4.1.
+//
 #define ANALOGOUTPIN     1    // 1 for pin A14, 0 for pin 27
 //
 #if ANALOGOUTPIN              // Normal configuration:
-const int ant1_select =  A14; // Analog output pin used as a digital output pin
+const int ant1_select =  A14; // Analog output pin used as a digital ouput pin
 //
 #else                         // Alternate configuration:
-const int ant1_select =  27;  // Pad underneath Teensy 3.1/3.2, pin 27 on Teensy 4.1
+const int ant1_select =  27;  // Pad underneath the Teensy 3.1/3.2
 #endif
-const int ant2_select =  26;  // Pad underneath Teensy 3.1/3.2, pin 26 on Teensy 4.1
+const int ant2_select =  26;  // Pad underneath the Teensy 3.1/3.2
 
 #if ANT_CHG_2BANKS && !ANT1_CHANGEOVER && ANALOGOUTPIN // 2 Memory banks, Manual Mode
-const int ChgOvSW     =  27;  // Antenna Changeover, pad underneath Teensy 3.1/3.2, pin 27 on Teensy 4.1
+const int ChgOvSW     =  27;  // Antenna Changeover, pad underneath the Teensy 3.1/3.2
 #endif
-const int bnd_bit1    =  24;  // Band switching signals, pads underneath Teensy 3.1/3.2 (pin 24 on Teensy 4.1),
-const int bnd_bit2    =  25;  // two binary signal pins for four bands (pin 25 on Teensy 4.1).
-const int profile_bit1=  31;  // Radio Profile switching signals, pads underneath Teensy 3.1/3.2 (pin 31 on Teensy 4.1),
-const int profile_bit2=  32;  // two binary signal pins for four profiles (pin 32 on Teensy 4.1).
-const int swralarm_bit=  33;  // SWR alarm output whenever SWR is higher than Menu Preset (pin 33 on Teensy 4.1).
+const int bnd_bit1    =  24;  // Band switching signals, pads underneath the Teensy 3.1/3.2,
+const int bnd_bit2    =  25;  // two binary signal pins for four bands.
+const int profile_bit1=  31;  // Radio Profile switching  signals, pads underneath the Teensy 3.1/3.2,
+const int profile_bit2=  32;  // two binary signal pins for four profiles.
+const int swralarm_bit=  33;  // SWR alarm output whenever SWR is higher than Menu Preset
 
 //
 //-----------------------------------------------------------------------------
@@ -810,15 +813,10 @@ typedef struct  {
 #define NOPWR      3
 
 //-----------------------------------------------------------------------------
-// Soft Reset - Compatible with Teensy 3.1/3.2 (Kinetis ARM Cortex-M4) and Teensy 4.0/4.1 (ARM Cortex-M7)
-// Writing VECTKEY (0x05FA) and SYSRESETREQ (0x04) to SCB_AIRCR (0xE000ED0C) triggers a software system reset.
-#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1052__)
-#define SOFT_RESET()       SCB_AIRCR = 0x05FA0004
-#else
+// Soft Reset Teensy 3 style
 #define RESTART_ADDR       0xE000ED0C
 #define RESTART_VAL        0x5FA0004
 #define SOFT_RESET()       ((*(volatile uint32_t *)RESTART_ADDR) = (RESTART_VAL))
-#endif
 
 //-----------------------------------------------------------------------------
 // Macros

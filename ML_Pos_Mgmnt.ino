@@ -399,9 +399,13 @@ void antenna_select(int32_t frq)
   }
   if (old_ant != ant)
   {
-    #if !DRV8825STEPPER
+    #if RS485STEPPER
+    rs485_PwrOff();                                  // Cut motor current
+    #endif    
+    #if A4975STEPPER
     a4975_PwrOff();                                  // Cut motor current
-    #else
+    #endif
+    #if DRV8825STEPPER
     drv8825_PwrOff();
     #endif    
     delayloop(50);                                   // Delay time for current decay
@@ -1015,9 +1019,13 @@ void rotate_stepper_b(uint8_t microstep_rate, uint8_t backlash_comp)
   if (!backlash && ((stepper_track[ant] + (step_size-1)) < (running[ant].Pos + delta_Pos[ant])))
   #endif
   {
+    #if RS485STEPPER  // ML.h selection: A Pololu (TI) DRV8825 or (Allegro) A4988 Stepper motor controller carrier board
+    s485_Incr(microstep_rate);
+    #endif
     #if DRV8825STEPPER  // ML.h selection: A Pololu (TI) DRV8825 or (Allegro) A4988 Stepper motor controller carrier board
     drv8825_Incr(microstep_rate);
-    #else               // ML.h selection: A pair of A4975 Stepper Controllers
+    #endif
+    #if A4975STEPPER	// ML.h selection: A pair of A4975 Stepper Controllers
     a4975_Incr(microstep_rate);	
     #endif
     stepper_track[ant] += step_size;      // Increase counter in accordance with step size
@@ -1044,9 +1052,13 @@ void rotate_stepper_b(uint8_t microstep_rate, uint8_t backlash_comp)
     if (backlash && (stepper_track[ant] > (running[ant].Pos + delta_Pos[ant] - angle)))  
     #endif
     {
+      #if RS485STEPPER  // ML.h selection: A Pololu (TI) DRV8825 or (Allegro) A4988 Stepper motor controller carrier board
+      rs485_Decr(microstep_rate);
+      #endif
       #if DRV8825STEPPER  // ML.h selection: A Pololu (TI) DRV8825 or (Allegro) A4988 Stepper motor controller carrier board
       drv8825_Decr(microstep_rate);
-      #else               // ML.h selection: A pair of A4975 Stepper Controllers
+      #endif
+	  #if A4975STEPPER// ML.h selection: A pair of A4975 Stepper Controllers
       a4975_Decr(microstep_rate);	
       #endif
       stepper_track[ant] -= step_size;    // Decrease counter in accordance with step size--;
@@ -1068,9 +1080,13 @@ void rotate_stepper_b(uint8_t microstep_rate, uint8_t backlash_comp)
     if (stepper_track[ant] > (running[ant].Pos + delta_Pos[ant]))  
     #endif
     {
+      #if RS485STEPPER  // ML.h selection: A Pololu (TI) DRV8825 or (Allegro) A4988 Stepper motor controller carrier board
+      rs485_Decr(microstep_rate);
+      #endif
       #if DRV8825STEPPER  // ML.h selection: A Pololu (TI) DRV8825 or (Allegro) A4988 Stepper motor controller carrier board
       drv8825_Decr(microstep_rate);
-      #else               // ML.h selection: A pair of A4975 Stepper Controllers
+      #endif
+      #if A4975STEPPER		  // ML.h selection: A pair of A4975 Stepper Controllers
       a4975_Decr(microstep_rate);  
       #endif
       stepper_track[ant] -= step_size;    // Decrease counter in accordance with step size

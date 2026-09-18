@@ -236,7 +236,7 @@ int8_t dn_button_toggle(void)
   return toggle_status;
 }
 
-#if !DRV8825STEPPER    // ML.h selection: A pair of A4975 Stepper Controllers
+#if A4975STEPPER    // ML.h selection: A pair of A4975 Stepper Controllers
 //
 //---------------------------------------------------------------------------------
 // Bipolar Stepper Motor Control Routine,
@@ -320,8 +320,8 @@ void a4975_Init(void)
   // Ensure Power Off state
   a4975_Write(0); 
 }
-
-#else                // ML.h selection: A Pololu, StepStick or similar
+#endif
+#if DRV8825STEPPER                // ML.h selection: A Pololu, StepStick or similar
                      // (Allegro A4988 / TI DRV8825) Stepper motor controller carrier board
 //
 //---------------------------------------------------------------------------------
@@ -400,5 +400,93 @@ void drv8825_Init(void)
   pinMode(drv8825_ms1, OUTPUT);        // MS1 pin
   pinMode(drv8825_enable, OUTPUT);     // Enable Pin    
   drv8825_PwrOff();                    // Ensure Power Off state
+}
+#endif
+#if RS485STEPPER    // ML.h selection: A pair of A4975 Stepper Controllers
+//---------------------------------------------------------------------------------
+//		RS485 Stepper control
+//---------------------------------------------------------------------------------
+//
+   
+//
+// Increment Stepper
+//
+void rs485_Incr(uint8_t res)
+{
+  res = 3 - res;                       // Reversed: 0 for no microsteps
+                                       // 1 for half step (2 microsteps)
+                                       // 2 for quarter step (4 microsteps)
+                                       // 3 for eighth step (8 microsteps)
+
+  rs485_PwrOn();                     // Ensure Power On state
+  Rs485.println("$SINC",res);
+//  digitalWrite(drv8825_dir, LOW);      // Clockwise
+//  digitalWrite(drv8825_ms1, (res&0x01)?HIGH:LOW);  // ... Microstep resolution
+//  digitalWrite(drv8825_ms2, (res&0x02)?HIGH:LOW);
+//  digitalWrite(drv8825_step, HIGH);    // Prime for Movement, turn Step pulse on
+}
+//
+// Decrement Stepper
+//
+void rs485_Decr(uint8_t res)
+{
+  res = 3 - res;                       // Reversed: 0 for no microsteps
+                                       // 1 for half step (2 microsteps)
+                                       // 2 for quarter step (4 microsteps)
+                                       // 3 for eighth step (8 microsteps)
+
+  rs485_PwrOn();                     // Ensure Power On state
+  Rs485.println("$SDEC",res);
+
+//  digitalWrite(drv8825_dir, HIGH);     // Counterclockwise
+//  digitalWrite(drv8825_ms1, (res&0x01)?HIGH:LOW);  // ... Microstep resolution
+//  digitalWrite(drv8825_ms2, (res&0x02)?HIGH:LOW);
+//  digitalWrite(drv8825_step, HIGH);    // Prime for Movement, turn Step pulse on
+}
+
+//
+// Move Stepper (neends >1+ microsecond delay from positive edge)
+//
+void rs485_Move(void)
+{
+	  Rs485.println("$SMOV");
+
+//  digitalWrite(drv8825_step, LOW);     // Move, turn Step pulse off  
+}
+
+//
+// Turn the Stepper On
+//
+void rs485_PwrOn(void)
+{
+  //digitalWrite(drv8825_reset, HIGH); // Release Reset, turn Stepper Motor On
+  Rs485.println("$SON");
+
+//  digitalWrite(drv8825_enable, LOW);   // Enable Stepper
+}
+
+//
+// Turn the Stepper Off
+//
+void rs485_PwrOff(void)
+{
+  //digitalWrite(drv8825_reset, LOW);  // Reset and turn Stepper Motor Off
+  Rs485.println("$SOF");
+
+//  digitalWrite(drv8825_enable, HIGH);  // Disable Stepper, retain last state
+}
+
+//
+// Init Stepper Outputs
+//
+void rs485_Init(void)
+{
+//  pinMode(drv8825_dir, OUTPUT);        // Direction Pin    
+//  pinMode(drv8825_step, OUTPUT);       // Step Pin
+//  pinMode(drv8825_ms2, OUTPUT);        // MS2 pin
+//  pinMode(drv8825_ms1, OUTPUT);        // MS1 pin
+//  pinMode(drv8825_enable, OUTPUT);     // Enable Pin    
+  Rs485.println("$SINIT");
+  rs485_PwrOff();                    // Ensure Power Off state
 }
 #endif
