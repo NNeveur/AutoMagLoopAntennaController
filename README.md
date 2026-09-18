@@ -21,6 +21,7 @@ Une antenne boucle magnétique possédant une bande passante très étroite, cha
 
 - **Commande Moteur Pas-à-Pas de Précision :**
   - Support de drivers bipolaires : Allegro A4975 (paire) ou modules type StepStick/Pololu (TI DRV8825, Allegro A4988).
+  - Support du contrôle à distance du moteur pas-à-pas via bus série **RS485** (`#define RS485STEPPER 1`).
   - Gestion du microstepping variable (pas entier, 1/2, 1/4, 1/8 de pas) et vitesse adaptative selon la distance.
   - Compensation automatique du jeu mécanique (*Backlash compensation*).
   - Détection optionnelle de fins de course (*End-stop switches*) ou gestion intelligente pour condensateur sous vide et papillon.
@@ -62,8 +63,9 @@ Une antenne boucle magnétique possédant une bande passante très étroite, cha
 
 * **Microcontrôleur :** PJRC Teensy 3.1 / 3.2 (32-bit ARM Cortex-M4 à 72 MHz) ou **Teensy 4.1** (32-bit ARM Cortex-M7 à 600 MHz).
 * **Pilote de Moteur Pas-à-Pas :**
-  - Soit 2x Allegro A4975.
+  - Soit 2x Allegro A4975 (`#define A4975STEPPER 1`).
   - Soit 1x Pololu DRV8825 / A4988 (`#define DRV8825STEPPER 1`).
+  - Soit contrôle à distance via liaison **RS485** (`#define RS485STEPPER 1`) sur le port série `Serial2` à 9600 bps.
 * **Affichage :** Écran LCD 20x4 caractères (4 bits de données + RS, RW, E).
 * **Interface Radio :** Port UART (Pins 0/RX1 et 1/TX1) avec inverseur RS232 / TTL optionnel.
 * **Mesure RF :**
@@ -113,7 +115,7 @@ Pour assurer une compatibilité complète avec la carte **Teensy 4.1** sans cass
 | `ML_SWRtune.ino` | Algorithme de recherche automatique du creux de ROS (*SWR Autotune*), contrôle automatique du transcepteur en PTT/AM. |
 | `ML_TRX.ino` | Pilote de communication CAT pour les différents transcepteurs (ICOM, Kenwood, Yaesu, Elecraft, TenTec, Pseudo-VFO) avec support Open Drain pour Teensy 3.x et 4.x. |
 | `ML_USB.ino` | Interprète de commandes série USB pour le contrôle distant, l'export/import des mémoires et le débogage. |
-| `ML__Switches_and_Stepper.ino` | Gestion matérielle des boutons poussoirs (anti-rebond, détection appui court/long) et génération des impulsions du moteur pas-à-pas. |
+| `ML__Switches_and_Stepper.ino` | Gestion matérielle des boutons poussoirs (anti-rebond, détection appui court/long), de la commande du moteur pas-à-pas et du protocole RS485. |
 | `_EEPROMAnything.h` | Fonctions génériques (templates) de lecture/écriture de structures en EEPROM. |
 | `gpl.txt` | Texte complet de la licence publique générale GNU (GPLv3). |
 
@@ -124,8 +126,10 @@ Pour assurer une compatibilité complète avec la carte **Teensy 4.1** sans cass
 Toutes les options matérielles et logicielles sont configurables dans le fichier `ML.h` avant la compilation :
 
 ```c
-// Choix du driver moteur pas-à-pas (0 = 2x A4975, 1 = DRV8825 / A4988)
-#define DRV8825STEPPER     1
+// Choix du mode de contrôle du moteur pas-à-pas (sélectionner un seul driver à 1) :
+#define DRV8825STEPPER     0    // 1 pour module DRV8825 / A4988
+#define A4975STEPPER       0    // 1 pour 2x Allegro A4975
+#define RS485STEPPER       1    // 1 pour contrôle à distance via bus RS485 (Serial2, 9600 bps)
 
 // Détecteur logarithmique AD8307 (0 = Non, 1 = Oui)
 #define AD8307_INSTALLED   0
@@ -139,6 +143,21 @@ Toutes les options matérielles et logicielles sont configurables dans le fichie
 // Radio par défaut à l'allumage (0 = ICOM CI-V Auto, 1 = ICOM Poll, 4 = Kenwood TS-480/2000, 7 = Yaesu FT-8x7, 13 = Elecraft K3, 17 = Pseudo-VFO...)
 #define DEFAULT_RADIO      1
 ```
+
+---
+
+## 📡 Protocole de Commande Moteur RS485
+
+Lorsque l'option `#define RS485STEPPER 1` est activée dans `ML.h`, le contrôleur envoie des commandes ASCII via le port série `Serial2` (initialisé à 9600 bauds) pour piloter un driver moteur pas-à-pas distant :
+
+| Commande | Paramètre | Description |
+| :--- | :--- | :--- |
+| `$SINIT` | Aucun | Initialisation du contrôleur moteur pas-à-pas RS485. |
+| `$SON` | Aucun | Activation de l'alimentation des enroulements du moteur (*Power On*). |
+| `$SOF` | Aucun | Coupure de l'alimentation du moteur pas-à-pas (*Power Off* / économie de courant). |
+| `$SINC <res>` | `<res>` (0-3) | Préparation du déplacement dans le sens horaire (*Increment*) avec niveau de microstepping `res` (3 = pas entier, 2 = 1/2 pas, 1 = 1/4 de pas, 0 = 1/8 de pas). |
+| `$SDEC <res>` | `<res>` (0-3) | Préparation du déplacement dans le sens anti-horaire (*Decrement*) avec niveau de microstepping `res`. |
+| `$SMOV` | Aucun | Exécution du déplacement d'un pas (*Pulse Step*). |
 
 ---
 

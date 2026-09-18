@@ -1020,7 +1020,7 @@ void rotate_stepper_b(uint8_t microstep_rate, uint8_t backlash_comp)
   #endif
   {
     #if RS485STEPPER  // ML.h selection: A Pololu (TI) DRV8825 or (Allegro) A4988 Stepper motor controller carrier board
-    s485_Incr(microstep_rate);
+    rs485_Incr(microstep_rate);
     #endif
     #if DRV8825STEPPER  // ML.h selection: A Pololu (TI) DRV8825 or (Allegro) A4988 Stepper motor controller carrier board
     drv8825_Incr(microstep_rate);
