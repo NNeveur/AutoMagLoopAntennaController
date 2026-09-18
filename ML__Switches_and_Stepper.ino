@@ -402,7 +402,7 @@ void drv8825_Init(void)
   drv8825_PwrOff();                    // Ensure Power Off state
 }
 #endif
-#if RS485STEPPER    // ML.h selection: A pair of A4975 Stepper Controllers
+#if RS485STEPPER    // RS485 Stepper control
 //---------------------------------------------------------------------------------
 //		RS485 Stepper control
 //---------------------------------------------------------------------------------
@@ -419,11 +419,8 @@ void rs485_Incr(uint8_t res)
                                        // 3 for eighth step (8 microsteps)
 
   rs485_PwrOn();                     // Ensure Power On state
-  Rs485.println("$SINC",res);
-//  digitalWrite(drv8825_dir, LOW);      // Clockwise
-//  digitalWrite(drv8825_ms1, (res&0x01)?HIGH:LOW);  // ... Microstep resolution
-//  digitalWrite(drv8825_ms2, (res&0x02)?HIGH:LOW);
-//  digitalWrite(drv8825_step, HIGH);    // Prime for Movement, turn Step pulse on
+  Rs485.print("$SINC ");
+  Rs485.println(res);
 }
 //
 // Decrement Stepper
@@ -436,12 +433,8 @@ void rs485_Decr(uint8_t res)
                                        // 3 for eighth step (8 microsteps)
 
   rs485_PwrOn();                     // Ensure Power On state
-  Rs485.println("$SDEC",res);
-
-//  digitalWrite(drv8825_dir, HIGH);     // Counterclockwise
-//  digitalWrite(drv8825_ms1, (res&0x01)?HIGH:LOW);  // ... Microstep resolution
-//  digitalWrite(drv8825_ms2, (res&0x02)?HIGH:LOW);
-//  digitalWrite(drv8825_step, HIGH);    // Prime for Movement, turn Step pulse on
+  Rs485.print("$SDEC ");
+  Rs485.println(res);
 }
 
 //
